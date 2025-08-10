@@ -54,9 +54,120 @@ h2 a {
   font-weight: bold;
   float: right;
 }
+
+/* 注释悬停提示框样式 */
+.footnote-tooltip {
+  position: absolute;
+  background: #333;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1.4;
+  max-width: 400px;
+  width: max-content;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  border: 1px solid #555;
+}
+
+.footnote-tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.footnote-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: #333;
+}
+
+/* 让 sup 角标可以悬停 */
+sup a {
+  position: relative;
+  cursor: help;
+  text-decoration: none;
+  border-bottom: 1px dotted #666;
+  transition: border-color 0.2s ease;
+}
+
+sup a:hover {
+  border-bottom-color: #333;
+}
 </style>
   </head>
   <body>
     {{ content | safe }}
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        // 创建提示框元素
+        const tooltip = document.createElement('div');
+        tooltip.className = 'footnote-tooltip';
+        document.body.appendChild(tooltip);
+        
+        // 收集所有注释内容
+        const footnotes = {};
+        const footnoteItems = document.querySelectorAll('ol[type="1"] li[id^="fn:"]');
+        footnoteItems.forEach(item => {
+          const id = item.id;
+          // 获取注释内容，但排除后面的超链接
+          const content = item.cloneNode(true);
+          const links = content.querySelectorAll('a');
+          links.forEach(link => {
+              link.remove();
+          });
+          footnotes[id] = content.innerHTML.trim();
+        });
+        
+        // 为所有 sup 中的注释链接添加事件监听
+        const footnoteLinks = document.querySelectorAll('sup a[href^="#fn:"]');
+        
+        footnoteLinks.forEach(link => {
+          link.addEventListener('mouseenter', function(e) {
+            const href = this.getAttribute('href');
+            const footnoteId = href.substring(1); // 移除 # 号
+            const content = footnotes[footnoteId];
+            
+            if (content) {
+              tooltip.innerHTML = content;
+              tooltip.classList.add('show');
+              
+              // 计算位置
+              const rect = this.getBoundingClientRect();
+              const tooltipRect = tooltip.getBoundingClientRect();
+              
+              let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+              let top = rect.top - tooltipRect.height - 10;
+              
+              // 确保提示框不会超出视窗
+              if (left < 10) left = 10;
+              if (left + tooltipRect.width > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipRect.width - 10;
+              }
+              if (top < 10) {
+                top = rect.bottom + 10; // 如果上方空间不够，显示在下方
+                tooltip.style.transform = 'translateY(0)';
+              }
+              
+              tooltip.style.left = left + 'px';
+              tooltip.style.top = top + window.scrollY + 'px';
+            }
+          });
+          
+          link.addEventListener('mouseleave', function() {
+            tooltip.classList.remove('show');
+          });
+        });
+      });
+    </script>
   </body>
 </html>
